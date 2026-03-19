@@ -1,0 +1,44 @@
+name: "Security Audit Log"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 9 * * 1' # Weekly Monday
+
+permissions:
+  contents: read
+  security-events: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log commit metadata
+        run: |
+          echo "=== Security Audit Log ===" > audit-report.txt
+          echo "Date: $(date -u)" >> audit-report.txt
+          echo "Repository: ${{ github.repository }}" >> audit-report.txt
+          echo "Branch: ${{ github.ref_name }}" >> audit-report.txt
+          echo "Triggered by: ${{ github.actor }}" >> audit-report.txt
+          echo "Event: ${{ github.event_name }}" >> audit-report.txt
+          echo "Commit SHA: ${{ github.sha }}" >> audit-report.txt
+          echo "" >> audit-report.txt
+          echo "=== Recent Commits ===" >> audit-report.txt
+          git log --oneline -20 >> audit-report.txt
+          echo "" >> audit-report.txt
+          echo "=== Files Changed ===" >> audit-report.txt
+          git diff --name-only HEAD~1 HEAD 2>/dev/null >> audit-report.txt || echo "Initial commit" >> audit-report.txt
+          cat audit-report.txt
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-report-${{ github.run_number }}
+          path: audit-report.txt
+          retention-days: 365
